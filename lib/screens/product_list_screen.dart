@@ -1,12 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/product.dart';
 import 'product_detail_screen.dart';
 import 'user_management_screen.dart';
 import 'login_screen.dart';
 
-class ProductListScreen extends StatelessWidget {
-  const ProductListScreen({super.key});
+class ProductListScreen extends StatefulWidget {
+  final String accessToken;
+
+  const ProductListScreen({super.key, required this.accessToken});
+
+  @override
+  State<ProductListScreen> createState() => _ProductListScreenState();
+}
+
+class _ProductListScreenState extends State<ProductListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  List<Product> _products = [];
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProperties();
+  }
+
+  Future<void> _fetchProperties() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/v1/properties/?page=1&size=10'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.accessToken}',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final List<dynamic> items = data['items'] as List<dynamic>? ?? [];
+
+        final products = items.map((item) {
+          final map = item as Map<String, dynamic>;
+          return Product(
+            id: map['id'] as int,
+            name: map['titulo']?.toString() ?? 'Imóvel ${map['id']}',
+            description:
+                'Tipo: ${map['tipo'] ?? '-'} • Cidade: ${map['cidade'] ?? '-'} • Quartos: ${map['quartos'] ?? 0} • Banheiros: ${map['banheiros'] ?? 0} • Vagas: ${map['vagas'] ?? 0}',
+            price: (map['preco'] as num?)?.toDouble() ?? 0.0,
+            // Backend não envia imagem, então usamos uma imagem placeholder fixa
+            imageUrl: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
+          );
+        }).toList();
+
+        setState(() {
+          _products = products;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Falha ao carregar imóveis (código ${response.statusCode}).';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Erro ao conectar ao servidor. Tente novamente.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -45,12 +123,24 @@ class ProductListScreen extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final products = _getProductList();
+    final products = _products;
+
+    final filtered = products.where((p) {
+      final q = _searchQuery.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return p.name.toLowerCase().contains(q) || p.description.toLowerCase().contains(q);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Produtos'),
+        title: const Text('Imóveis'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
@@ -60,7 +150,7 @@ class ProductListScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const UserManagementScreen(),
+                  builder: (context) => UserManagementScreen(accessToken: widget.accessToken),
                 ),
               );
             },
@@ -73,90 +163,98 @@ class ProductListScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: products.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12.0),
-        itemBuilder: (context, index) {
-          return ProductCard(product: products[index]);
-        },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Pesquisar imóveis por nome ou descrição',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (_errorMessage != null) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.red,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: _fetchProperties,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tentar novamente'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Nenhum imóvel encontrado',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: filtered.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12.0),
+                  itemBuilder: (context, index) {
+                    return ProductCard(product: filtered[index]);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  List<Product> _getProductList() {
-    return [
-      Product(
-        id: 1,
-        name: 'Notebook Dell',
-        description: 'Notebook com processador i7, 16GB RAM',
-        price: 3499.99,
-        imageUrl: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400',
-      ),
-      Product(
-        id: 2,
-        name: 'Mouse Logitech',
-        description: 'Mouse sem fio com sensor óptico',
-        price: 89.90,
-        imageUrl: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400',
-      ),
-      Product(
-        id: 3,
-        name: 'Teclado Mecânico',
-        description: 'Teclado mecânico RGB com switches azuis',
-        price: 299.99,
-        imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400',
-      ),
-      Product(
-        id: 4,
-        name: 'Monitor LG 24"',
-        description: 'Monitor Full HD IPS 24 polegadas',
-        price: 699.00,
-        imageUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400',
-      ),
-      Product(
-        id: 5,
-        name: 'Headset Gamer',
-        description: 'Headset com som surround 7.1',
-        price: 249.90,
-        imageUrl: 'https://images.unsplash.com/photo-1599669454699-248893623440?w=400',
-      ),
-      Product(
-        id: 6,
-        name: 'Webcam HD',
-        description: 'Webcam 1080p com microfone embutido',
-        price: 199.00,
-        imageUrl: 'https://images.unsplash.com/photo-1588508065123-287b28e013da?w=400',
-      ),
-      Product(
-        id: 7,
-        name: 'SSD 480GB',
-        description: 'SSD SATA III com velocidade de leitura 550MB/s',
-        price: 279.99,
-        imageUrl: 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?w=400',
-      ),
-      Product(
-        id: 8,
-        name: 'Cadeira Gamer',
-        description: 'Cadeira ergonômica com ajuste de altura',
-        price: 899.00,
-        imageUrl: 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=400',
-      ),
-      Product(
-        id: 9,
-        name: 'Mesa para PC',
-        description: 'Mesa com suporte para monitor e teclado',
-        price: 449.90,
-        imageUrl: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400',
-      ),
-      Product(
-        id: 10,
-        name: 'Hub USB 3.0',
-        description: 'Hub com 4 portas USB 3.0',
-        price: 59.90,
-        imageUrl: 'https://images.unsplash.com/photo-1625948515291-69613efd103f?w=400',
-      ),
-    ];
   }
 }
 
@@ -182,7 +280,7 @@ class ProductCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Image
+            // Property Image
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
@@ -197,7 +295,7 @@ class ProductCard extends StatelessWidget {
                   return Container(
                     width: 120,
                     height: 120,
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     child: Icon(
                       Icons.image_not_supported,
                       size: 40,
@@ -210,7 +308,7 @@ class ProductCard extends StatelessWidget {
                   return Container(
                     width: 120,
                     height: 120,
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     child: Center(
                       child: CircularProgressIndicator(
                         value: loadingProgress.expectedTotalBytes != null
@@ -223,7 +321,7 @@ class ProductCard extends StatelessWidget {
                 },
               ),
             ),
-            // Product Info
+            // Property Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),

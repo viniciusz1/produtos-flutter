@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'product_list_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,23 +15,87 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/v1/auth/login'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final accessToken = data['access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
+
+        if (accessToken == null || refreshToken == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Resposta inválida do servidor'),
+            ),
+          );
+        } else {
+          // TODO: Salvar tokens de forma segura (por exemplo, usando flutter_secure_storage)
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ProductListScreen(accessToken: accessToken),
+            ),
+          );
+        }
+      } else {
+        String message = 'Falha ao fazer login. Verifique suas credenciais.';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData is Map && errorData['detail'] is String) {
+            message = errorData['detail'] as String;
+          }
+        } catch (_) {
+          // Ignora erros de parse e usa a mensagem padrão
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro de conexão. Tente novamente.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      // Navega para a tela de lista de produtos
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const ProductListScreen(),
-        ),
-      );
-    }
   }
 
   @override
@@ -64,13 +130,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Icon(
-                          Icons.shopping_bag,
+                          Icons.house,
                           size: 80,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Consulta Produtos',
+                          'Imobiapp',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.primary,
@@ -141,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton(
-                          onPressed: _handleLogin,
+                          onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Theme.of(context).colorScheme.primary,
                             foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -151,13 +217,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             elevation: 2,
                           ),
-                          child: const Text(
-                            'Entrar',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text(
+                                  'Entrar',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                         const SizedBox(height: 16),
                         TextButton(
@@ -188,4 +263,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

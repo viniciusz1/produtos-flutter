@@ -11,7 +11,7 @@ class ProductDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalhes do Produto'),
+        title: const Text('Detalhes do Imóvel'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
       ),
@@ -19,7 +19,7 @@ class ProductDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Product Image
+            // Property Image
             Image.network(
               product.imageUrl,
               height: 300,
@@ -56,7 +56,7 @@ class ProductDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product name
+                  // Property name
                   Text(
                     product.name,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -65,7 +65,7 @@ class ProductDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
 
-                  // Product ID
+                  // Property ID
                   Text(
                     'Código: ${product.id}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -85,7 +85,7 @@ class ProductDetailScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Preço',
+                          'Valor',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 color: Theme.of(context).colorScheme.onPrimaryContainer,
                               ),
@@ -129,61 +129,29 @@ class ProductDetailScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildFeatureItem(
                     context,
-                    Icons.verified,
-                    'Produto Original',
-                    'Garantia do fabricante',
+                    Icons.home,
+                    'Localização Privilegiada',
+                    'Próximo a comércio e transporte',
                   ),
                   _buildFeatureItem(
                     context,
-                    Icons.local_shipping,
-                    'Frete Grátis',
-                    'Para compras acima de R\$ 200',
+                    Icons.meeting_room,
+                    'Planta funcional',
+                    'Ambientes amplos e bem distribuídos',
                   ),
                   _buildFeatureItem(
                     context,
-                    Icons.swap_horiz,
-                    'Troca Grátis',
-                    'Devolução em até 30 dias',
+                    Icons.pool,
+                    'Área de Lazer',
+                    'Opções de lazer no condomínio',
                   ),
                   _buildFeatureItem(
                     context,
-                    Icons.credit_card,
-                    'Parcelamento',
-                    'Em até 12x sem juros',
+                    Icons.lightbulb,
+                    'Iluminação Natural',
+                    'Ótima ventilação e iluminação natural',
                   ),
                   const SizedBox(height: 24),
-
-                  // Add to cart button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${product.name} adicionado ao carrinho!'),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Adicionar ao Carrinho',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                 ],
               ),
             ),

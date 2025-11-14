@@ -26,48 +26,33 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
   }
 
   void _loadBrands() {
-    // Dados mockados de marcas
+    // Dados mockados de imobiliárias
     setState(() {
       _availableBrands = [
         Brand(
           id: 1,
-          name: 'Dell',
-          logoUrl: 'https://logo.clearbit.com/dell.com',
+          name: 'Imobiliária Costa',
+          logoUrl: 'https://via.placeholder.com/80?text=Costa',
         ),
         Brand(
           id: 2,
-          name: 'Logitech',
-          logoUrl: 'https://logo.clearbit.com/logitech.com',
+          name: 'Imóveis & Cia',
+          logoUrl: 'https://via.placeholder.com/80?text=I&C',
         ),
         Brand(
           id: 3,
-          name: 'Samsung',
-          logoUrl: 'https://logo.clearbit.com/samsung.com',
+          name: 'Lar Perfeito',
+          logoUrl: 'https://via.placeholder.com/80?text=Lar',
         ),
         Brand(
           id: 4,
-          name: 'Apple',
-          logoUrl: 'https://logo.clearbit.com/apple.com',
+          name: 'Residencial Prime',
+          logoUrl: 'https://via.placeholder.com/80?text=Prime',
         ),
         Brand(
           id: 5,
-          name: 'Microsoft',
-          logoUrl: 'https://logo.clearbit.com/microsoft.com',
-        ),
-        Brand(
-          id: 6,
-          name: 'HP',
-          logoUrl: 'https://logo.clearbit.com/hp.com',
-        ),
-        Brand(
-          id: 7,
-          name: 'Lenovo',
-          logoUrl: 'https://logo.clearbit.com/lenovo.com',
-        ),
-        Brand(
-          id: 8,
-          name: 'Sony',
-          logoUrl: 'https://logo.clearbit.com/sony.com',
+          name: 'Casa Fácil',
+          logoUrl: 'https://via.placeholder.com/80?text=Casa',
         ),
       ];
     });
@@ -106,7 +91,7 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Atribuir Marcas'),
+        title: const Text('Atribuir Imobiliárias'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
@@ -127,7 +112,7 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
               color: Theme.of(context).colorScheme.primaryContainer,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -177,7 +162,7 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '${_selectedBrandIds.length} de ${_availableBrands.length} marcas selecionadas',
+                  '${_selectedBrandIds.length} de ${_availableBrands.length} imobiliárias selecionadas',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -218,7 +203,7 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
             ),
           ),
 
-          // Lista de marcas
+          // Lista de imobiliárias
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -290,7 +275,7 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Color.fromRGBO(0, 0, 0, 0.1),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
