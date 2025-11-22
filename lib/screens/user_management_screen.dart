@@ -84,7 +84,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final updatedUser = await Navigator.push<User>(
       context,
       MaterialPageRoute(
-        builder: (context) => AssignBrandsScreen(user: user),
+        builder: (context) => AssignBrandsScreen(
+          user: user,
+          accessToken: widget.accessToken,
+        ),
       ),
     );
 

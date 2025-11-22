@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/user.dart';
 import '../models/brand.dart';
 
 class AssignBrandsScreen extends StatefulWidget {
   final User user;
+  final String accessToken;
 
   const AssignBrandsScreen({
     super.key,
     required this.user,
+    required this.accessToken,
   });
-
+//
+  //teste
   @override
   State<AssignBrandsScreen> createState() => _AssignBrandsScreenState();
 }
@@ -17,6 +22,8 @@ class AssignBrandsScreen extends StatefulWidget {
 class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
   late List<int> _selectedBrandIds;
   List<Brand> _availableBrands = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -25,37 +32,56 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
     _loadBrands();
   }
 
-  void _loadBrands() {
-    // Dados mockados de imobiliárias
+  Future<void> _loadBrands() async {
     setState(() {
-      _availableBrands = [
-        Brand(
-          id: 1,
-          name: 'Imobiliária Costa',
-          logoUrl: 'https://via.placeholder.com/80?text=Costa',
-        ),
-        Brand(
-          id: 2,
-          name: 'Imóveis & Cia',
-          logoUrl: 'https://via.placeholder.com/80?text=I&C',
-        ),
-        Brand(
-          id: 3,
-          name: 'Lar Perfeito',
-          logoUrl: 'https://via.placeholder.com/80?text=Lar',
-        ),
-        Brand(
-          id: 4,
-          name: 'Residencial Prime',
-          logoUrl: 'https://via.placeholder.com/80?text=Prime',
-        ),
-        Brand(
-          id: 5,
-          name: 'Casa Fácil',
-          logoUrl: 'https://via.placeholder.com/80?text=Casa',
-        ),
-      ];
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/v1/agencies/?include_inactive=false'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.accessToken}',
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+
+        final brands = data.map((item) {
+          final map = item as Map<String, dynamic>;
+          return Brand(
+            id: map['id'] as int,
+            name: map['nome']?.toString() ?? 'Imobiliária ${map['id']}',
+            // Backend não envia logo, então usamos um placeholder
+            logoUrl: 'https://via.placeholder.com/80?text=${Uri.encodeComponent(map['nome']?.toString() ?? 'Agência')}',
+          );
+        }).toList();
+
+        setState(() {
+          _availableBrands = brands;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Falha ao carregar imobiliárias (código ${response.statusCode}).';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Erro ao conectar ao servidor. Tente novamente.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _toggleBrand(int brandId) {
@@ -205,63 +231,109 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
 
           // Lista de imobiliárias
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: _availableBrands.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final brand = _availableBrands[index];
-                final isSelected = _selectedBrandIds.contains(brand.id);
+            child: Builder(
+              builder: (context) {
+                if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                return Card(
-                  elevation: isSelected ? 4 : 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: CheckboxListTile(
-                    value: isSelected,
-                    onChanged: (_) => _toggleBrand(brand.id),
-                    title: Text(
-                      brand.name,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 16,
+                if (_errorMessage != null) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.red,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: _loadBrands,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tentar novamente'),
+                          ),
+                        ],
                       ),
                     ),
-                    secondary: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          brand.logoUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.business,
-                              color: Colors.grey[400],
-                              size: 30,
-                            );
-                          },
+                  );
+                }
+
+                if (_availableBrands.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Nenhuma imobiliária encontrada',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: _availableBrands.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final brand = _availableBrands[index];
+                    final isSelected = _selectedBrandIds.contains(brand.id);
+
+                    return Card(
+                      elevation: isSelected ? 4 : 1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.transparent,
+                          width: 2,
                         ),
                       ),
-                    ),
-                    activeColor: Theme.of(context).colorScheme.primary,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                  ),
+                      child: CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (_) => _toggleBrand(brand.id),
+                        title: Text(
+                          brand.name,
+                          style: TextStyle(
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 16,
+                          ),
+                        ),
+                        secondary: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              brand.logoUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.business,
+                                  color: Colors.grey[400],
+                                  size: 30,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        activeColor: Theme.of(context).colorScheme.primary,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
