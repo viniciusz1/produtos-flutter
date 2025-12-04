@@ -106,11 +106,69 @@ class _AssignBrandsScreenState extends State<AssignBrandsScreen> {
     });
   }
 
-  void _saveAndReturn() {
-    final updatedUser = widget.user.copyWith(
-      allowedBrandIds: _selectedBrandIds,
-    );
-    Navigator.pop(context, updatedUser);
+  Future<void> _saveAndReturn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final url = Uri.parse('http://127.0.0.1:8000/api/v1/users/${widget.user.id}/agencies');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.accessToken}',
+        },
+        body: jsonEncode({
+          'imobiliaria_ids': _selectedBrandIds,
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+        // Success - return the updated user
+        final updatedUser = widget.user.copyWith(
+          allowedBrandIds: _selectedBrandIds,
+        );
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Imobiliárias atribuídas com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, updatedUser);
+      } else {
+        // Error response
+        final message = response.body.isNotEmpty ? response.body : 'Código ${response.statusCode}';
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Falha ao salvar atribuições: $message'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro ao conectar ao servidor. Tente novamente.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
